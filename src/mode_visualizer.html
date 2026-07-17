@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mode Visualizer</title>
+<style>
+  :root {
+    --wood-dark: #2b1d14;
+    --wood-mid: #4a3324;
+    --fret-metal: #c9a24b;
+    --parchment: #efe6d6;
+    --ink: #241a12;
+    --blue-tone: #7ea3c9;
+    --blue-tone-edge: #3f6288;
+    --flat-tone: #c9974b;
+    --flat-tone-edge: #8a6423;
+    --sharp-tone: #b07ec9;
+    --sharp-tone-edge: #7a4f8a;
+    --green-root: #6b9c5f;
+    --green-root-edge: #3d6635;
+    --muted: #8a7c68;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--wood-dark);
+    font-family: Georgia, 'Iowan Old Style', serif;
+    color: var(--parchment);
+    padding: 32px 20px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+  }
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin: 0;
+    color: var(--parchment);
+    text-align: center;
+  }
+  .sub {
+    font-family: 'Courier New', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: -12px;
+  }
+
+  .controls-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+  }
+  .control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    color: var(--parchment);
+  }
+  .control select {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    background: var(--wood-mid);
+    color: var(--parchment);
+    border: 1px solid #6b543a;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .control input[type="checkbox"] {
+    accent-color: var(--fret-metal);
+    width: 15px; height: 15px;
+    cursor: pointer;
+  }
+  .control label { cursor: pointer; }
+
+  .panel {
+    background: var(--wood-mid);
+    border: 1px solid #5c4530;
+    border-radius: 10px;
+    padding: 18px 24px;
+    width: 100%;
+    max-width: 980px;
+    text-align: center;
+  }
+  .mode-name {
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: var(--fret-metal);
+    letter-spacing: 0.02em;
+  }
+  .mode-degree {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .mode-formula {
+    font-family: 'Courier New', monospace;
+    font-size: 1.05rem;
+    color: var(--parchment);
+    margin-top: 10px;
+    letter-spacing: 0.15em;
+  }
+  .mode-alterations {
+    font-family: 'Courier New', monospace;
+    font-size: 0.95rem;
+    color: var(--fret-metal);
+    margin-top: 6px;
+    letter-spacing: 0.08em;
+  }
+  .mode-mood {
+    font-size: 0.95rem;
+    color: var(--parchment);
+    opacity: 0.85;
+    margin-top: 8px;
+    font-style: italic;
+  }
+
+  .mode-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .mode-buttons button {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    background: transparent;
+    color: var(--parchment);
+    border: 1px solid #6b543a;
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .mode-buttons button:hover {
+    border-color: var(--fret-metal);
+  }
+  .mode-buttons button.active {
+    background: var(--green-root);
+    border-color: var(--green-root-edge);
+    color: #16240f;
+    font-weight: 700;
+  }
+
+  .board-wrap {
+    width: 100%;
+    max-width: 980px;
+    overflow-x: auto;
+  }
+  svg { display: block; margin: 0 auto; }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: var(--muted);
+    align-items: center;
+  }
+  .legend .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  .note-footer {
+    font-size: 0.75rem;
+    color: var(--muted);
+    max-width: 620px;
+    text-align: center;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+
+  <h1 id="titleLine">Modes of C Major</h1>
+  <div class="sub" id="subLine">same seven notes &mdash; the root moves</div>
+
+  <div class="controls-row">
+    <div class="control">
+      <label for="rootSelect">Root note</label>
+      <select id="rootSelect"></select>
+    </div>
+    <div class="control">
+      <input type="checkbox" id="lockToggle">
+      <label for="lockToggle">Lock root note (parallel modes)</label>
+    </div>
+    <div class="control">
+      <input type="checkbox" id="logToggle">
+      <label for="logToggle">Realistic (log-scaled) fret spacing</label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="mode-degree" id="degreeLabel">Degree I</div>
+    <div class="mode-name" id="modeName">Ionian</div>
+    <div class="mode-formula" id="modeFormula">W&nbsp;W&nbsp;H&nbsp;W&nbsp;W&nbsp;W&nbsp;H</div>
+    <div class="mode-alterations" id="modeAlterations">relative to Ionian: &mdash;</div>
+    <div class="mode-mood" id="modeMood">The major scale. Bright, resolved, home base.</div>
+  </div>
+
+  <div class="mode-buttons" id="modeButtons"></div>
+
+  <div class="board-wrap">
+    <svg id="board" viewBox="0 0 1360 480" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--blue-tone);border:2px solid var(--blue-tone-edge);"></span>natural degree</span>
+    <span><span class="swatch" style="background:var(--flat-tone);border:2px solid var(--flat-tone-edge);"></span>flat vs. Ionian</span>
+    <span><span class="swatch" style="background:var(--sharp-tone);border:2px solid var(--sharp-tone-edge);"></span>sharp vs. Ionian</span>
+    <span><span class="swatch" style="background:var(--green-root);border:2px solid var(--green-root-edge);"></span>current root</span>
+  </div>
+
+  <div class="note-footer">
+    Note names use sharps only for simplicity (e.g. D# rather than Eb) &mdash; the degree badge
+    below each dot is the reliable functional label regardless of spelling.
+  </div>
+
+<script>
+  // ---- Music data ---------------------------------------------------
+  const NOTE_NAMES_CHROMATIC = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  const MAJOR_INTERVALS = [0,2,4,5,7,9,11]; // semitones from Ionian root, by scale position
+
+  const MODES = [
+    { name: "Ionian",     degree: "I",    formula: "W W H W W W H", mood: "The major scale. Bright, resolved, home base." },
+    { name: "Dorian",     degree: "II",   formula: "W H W W W H W", mood: "Minor but with a raised 6th \u2014 folky, a little hopeful." },
+    { name: "Phrygian",   degree: "III",  formula: "H W W W H W W", mood: "Minor with a flat 2nd \u2014 dark, Spanish-tinged." },
+    { name: "Lydian",     degree: "IV",   formula: "W W W H W W H", mood: "Major with a raised 4th \u2014 dreamy, floating." },
+    { name: "Mixolydian", degree: "V",    formula: "W W H W W H W", mood: "Major with a flat 7th \u2014 bluesy, unresolved." },
+    { name: "Aeolian",    degree: "VI",   formula: "W H W W H W W", mood: "The natural minor scale. Sad, grounded." },
+    { name: "Locrian",    degree: "VII",  formula: "H W W H W W W", mood: "Diminished 5th \u2014 unstable, rarely used as a tonal center." }
+  ];
+
+  // Tuning, displayed top string to bottom string (high e on top, like standard tab).
+  const STRINGS = [
+    { label: "E", openPc: 4  }, // high e
+    { label: "B", openPc: 11 },
+    { label: "G", openPc: 7  },
+    { label: "D", openPc: 2  },
+    { label: "A", openPc: 9  },
+    { label: "E", openPc: 4  }  // low E
+  ];
+
+  const NUM_FRETS = 12;
+
+  // ---- State ----------------------------------------------------------
+  let ROOT_PC = 0;       // selected root pitch class (Ionian tonic if !lockRoot, fixed tonic if lockRoot)
+  let lockRoot = false;   // false = relative modes (root moves), true = parallel modes (notes shift)
+  let logScale = false;
+  let currentMode = 0;
+
+  // For a given mode index i, compute the scale-degree label + diff (relative to Ionian)
+  // for each of the 7 scale positions, in mode order (root first). Key-independent.
+  function degreeLabelsForMode(i) {
+    const labels = [];
+    const diffs = [];
+    const rootExpected = MAJOR_INTERVALS[i];
+    for (let k = 0; k < 7; k++) {
+      const expectedAtPos = MAJOR_INTERVALS[(i + k) % 7];
+      let interval = expectedAtPos - rootExpected;
+      interval = ((interval % 12) + 12) % 12;
+      const expected = MAJOR_INTERVALS[k];
+      const diff = interval - expected;
+      let label;
+      if (diff === 0) label = String(k + 1);
+      else if (diff < 0) label = "b" + (k + 1);
+      else label = "#" + (k + 1);
+      labels.push(label);
+      diffs.push(diff);
+    }
+    return { labels, diffs };
+  }
+
+  // Returns { pcs: [7 pitch classes, scalar order from root], rootPc, labels, diffs }
+  function getActiveNotes(modeIndex) {
+    const { labels, diffs } = degreeLabelsForMode(modeIndex);
+    let pcs = [];
+    let rootPc;
+
+    if (!lockRoot) {
+      // Relative modes: ROOT_PC is the Ionian tonic of the parent major scale.
+      const majorScalePcs = MAJOR_INTERVALS.map(iv => (ROOT_PC + iv) % 12);
+      rootPc = majorScalePcs[modeIndex];
+      for (let k = 0; k < 7; k++) pcs.push(majorScalePcs[(modeIndex + k) % 7]);
+    } else {
+      // Parallel modes: ROOT_PC is fixed as the tonic; notes shift per mode.
+      rootPc = ROOT_PC;
+      for (let k = 0; k < 7; k++) {
+        const interval = (MAJOR_INTERVALS[k] + diffs[k] + 12) % 12;
+        pcs.push((ROOT_PC + interval) % 12);
+      }
+    }
+    return { pcs, rootPc, labels, diffs };
+  }
+
+  // ---- SVG layout -----------------------------------------------------
+  const svg = document.getElementById("board");
+  const W = 1360, H = 480;
+  const marginLeft = 70, marginRight = 40, marginTop = 40, marginBottom = 40;
+  const boardW = W - marginLeft - marginRight;
+  const boardH = H - marginTop - marginBottom;
+
+  function logFrac(n) { return 1 - Math.pow(2, -n / 12); }
+  const LOG_NORM = logFrac(NUM_FRETS); // = 0.5
+
+  function fretX(i) {
+    if (i === 0) return marginLeft;
+    if (!logScale) return marginLeft + (boardW / NUM_FRETS) * i;
+    return marginLeft + boardW * (logFrac(i) / LOG_NORM);
+  }
+
+  const stringY = i => marginTop + (boardH / (STRINGS.length - 1)) * i;
+
+  const DOT_FRETS = [3,7,9];
+  const DOUBLE_DOT_FRETS = [5,12];
+  const INLAY_COLOR = "#f7f2e2"; // ivory
+
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  const staticLayer = svgEl("g", { id: "staticLayer" });
+  const dotsLayer = svgEl("g", { id: "dotsLayer" });
+  svg.appendChild(staticLayer);
+  svg.appendChild(dotsLayer);
+
+  function drawStaticBoard() {
+    while (staticLayer.firstChild) staticLayer.removeChild(staticLayer.firstChild);
+
+    staticLayer.appendChild(svgEl("rect", {
+      x: marginLeft, y: marginTop - 18, width: boardW, height: boardH + 36,
+      rx: 6, fill: "#5c4128", stroke: "#3a2818", "stroke-width": 2
+    }));
+
+    DOT_FRETS.forEach(f => {
+      const cx = (fretX(f - 1) + fretX(f)) / 2;
+      staticLayer.appendChild(svgEl("circle", { cx, cy: H/2, r: 7, fill: INLAY_COLOR, opacity: 0.9 }));
+    });
+    DOUBLE_DOT_FRETS.forEach(f => {
+      const cx = (fretX(f - 1) + fretX(f)) / 2;
+      staticLayer.appendChild(svgEl("circle", { cx, cy: H/2 - 28, r: 7, fill: INLAY_COLOR, opacity: 0.9 }));
+      staticLayer.appendChild(svgEl("circle", { cx, cy: H/2 + 28, r: 7, fill: INLAY_COLOR, opacity: 0.9 }));
+    });
+
+    for (let i = 0; i <= NUM_FRETS; i++) {
+      staticLayer.appendChild(svgEl("line", {
+        x1: fretX(i), y1: marginTop - 18, x2: fretX(i), y2: marginTop + boardH + 18,
+        stroke: i === 0 ? "#efe6d6" : "#c9a24b",
+        "stroke-width": i === 0 ? 8 : 3
+      }));
+    }
+
+    for (let i = 1; i <= NUM_FRETS; i++) {
+      const t = svgEl("text", {
+        x: (fretX(i-1)+fretX(i))/2, y: marginTop + boardH + 34,
+        "text-anchor": "middle", "font-size": "13", fill: "#8a7c68",
+        "font-family": "Courier New, monospace"
+      });
+      t.textContent = i;
+      staticLayer.appendChild(t);
+    }
+
+    STRINGS.forEach((s, i) => {
+      const y = stringY(i);
+      staticLayer.appendChild(svgEl("line", {
+        x1: marginLeft, y1: y, x2: marginLeft + boardW, y2: y,
+        stroke: "#1a1208", "stroke-width": 3
+      }));
+    });
+  }
+
+  function colorsFor(diff, isRoot) {
+    if (isRoot) return { fill: "var(--green-root)", edge: "var(--green-root-edge)", text: "#16240f" };
+    if (diff < 0) return { fill: "var(--flat-tone)", edge: "var(--flat-tone-edge)", text: "#2a1d09" };
+    if (diff > 0) return { fill: "var(--sharp-tone)", edge: "var(--sharp-tone-edge)", text: "#22102a" };
+    return { fill: "var(--blue-tone)", edge: "var(--blue-tone-edge)", text: "#152538" };
+  }
+
+  function drawDots(modeIndex) {
+    while (dotsLayer.firstChild) dotsLayer.removeChild(dotsLayer.firstChild);
+
+    const { pcs, rootPc } = getActiveNotes(modeIndex);
+    const { labels, diffs } = degreeLabelsForMode(modeIndex);
+
+    // map pitch class -> {label, diff} using the scalar-order arrays above
+    const degMap = {};
+    for (let k = 0; k < 7; k++) degMap[pcs[k]] = { label: labels[k], diff: diffs[k] };
+    const scaleSet = new Set(pcs);
+
+    STRINGS.forEach((s, si) => {
+      const y = stringY(si);
+
+      // The open string (fret 0) should always be identifiable, even when its
+      // note isn't part of the current mode's scale.
+      if (!scaleSet.has(s.openPc)) {
+        const x = marginLeft - 40;
+        const g = svgEl("g", {});
+        g.appendChild(svgEl("circle", {
+          cx: x, cy: y, r: 17,
+          fill: "none", stroke: "#8a7c68", "stroke-width": 1.5, "stroke-dasharray": "3,3"
+        }));
+        const label = svgEl("text", {
+          x, y: y + 5, "text-anchor": "middle",
+          "font-size": "13", fill: "#8a7c68", "font-family": "Georgia, serif"
+        });
+        label.textContent = NOTE_NAMES_CHROMATIC[s.openPc];
+        g.appendChild(label);
+        dotsLayer.appendChild(g);
+      }
+
+      for (let f = 0; f <= NUM_FRETS; f++) {
+        const pc = (s.openPc + f) % 12;
+        if (!scaleSet.has(pc)) continue;
+        const x = f === 0 ? marginLeft - 40 : (fretX(f-1) + fretX(f)) / 2;
+        const isRoot = pc === rootPc;
+        const { label: degLabel, diff } = degMap[pc];
+        const c = colorsFor(diff, isRoot);
+
+        const g = svgEl("g", {});
+        const circle = svgEl("circle", {
+          cx: x, cy: y, r: 17,
+          fill: c.fill, stroke: c.edge, "stroke-width": 2.5
+        });
+        g.appendChild(circle);
+
+        const label = svgEl("text", {
+          x, y: y + 5, "text-anchor": "middle",
+          "font-size": "13", "font-weight": isRoot ? "700" : "400",
+          fill: c.text, "font-family": "Georgia, serif"
+        });
+        label.textContent = NOTE_NAMES_CHROMATIC[pc];
+        g.appendChild(label);
+
+        const badge = svgEl("text", {
+          x, y: y + 30, "text-anchor": "middle",
+          "font-size": "11", "font-weight": diff !== 0 ? "700" : "400",
+          fill: diff < 0 ? "var(--flat-tone)" : diff > 0 ? "var(--sharp-tone)" : "#8a7c68",
+          "font-family": "Courier New, monospace"
+        });
+        badge.textContent = degLabel;
+        g.appendChild(badge);
+
+        dotsLayer.appendChild(g);
+      }
+    });
+  }
+
+  // ---- Root select dropdown --------------------------------------------
+  const rootSelect = document.getElementById("rootSelect");
+  NOTE_NAMES_CHROMATIC.forEach((name, pc) => {
+    const opt = document.createElement("option");
+    opt.value = pc;
+    opt.textContent = name;
+    if (pc === 0) opt.selected = true;
+    rootSelect.appendChild(opt);
+  });
+  rootSelect.addEventListener("change", (e) => {
+    const chosenRootPc = parseInt(e.target.value, 10);
+    if (!lockRoot) {
+      // The dropdown represents the actual sounding root of the current mode.
+      // Back-solve the parent Ionian tonic so that this mode's root lands on chosenRootPc.
+      ROOT_PC = ((chosenRootPc - MAJOR_INTERVALS[currentMode]) % 12 + 12) % 12;
+    } else {
+      ROOT_PC = chosenRootPc;
+    }
+    render();
+  });
+
+  // ---- Mode buttons + state ------------------------------------------
+  const buttonsWrap = document.getElementById("modeButtons");
+  MODES.forEach((m, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = m.degree + " \u00b7 " + m.name;
+    btn.addEventListener("click", () => { currentMode = i; render(); });
+    buttonsWrap.appendChild(btn);
+  });
+
+  document.getElementById("lockToggle").addEventListener("change", (e) => {
+    lockRoot = e.target.checked;
+    render();
+  });
+
+  document.getElementById("logToggle").addEventListener("change", (e) => {
+    logScale = e.target.checked;
+    drawStaticBoard();
+    drawDots(currentMode);
+  });
+
+  function render() {
+    const m = MODES[currentMode];
+    const { rootPc, labels, diffs } = getActiveNotes(currentMode);
+    const rootName = NOTE_NAMES_CHROMATIC[rootPc];
+    const parentName = NOTE_NAMES_CHROMATIC[ROOT_PC];
+
+    document.getElementById("degreeLabel").textContent = "Degree " + m.degree;
+    document.getElementById("modeName").textContent = m.name + " (" + rootName + ")";
+    document.getElementById("modeFormula").textContent = m.formula;
+    document.getElementById("modeMood").textContent = m.mood;
+
+    const altered = labels.filter((l, k) => diffs[k] !== 0);
+    document.getElementById("modeAlterations").textContent =
+      altered.length ? "relative to Ionian: " + altered.join(", ") : "relative to Ionian: no alterations";
+
+    if (!lockRoot) {
+      document.getElementById("titleLine").textContent = "Modes of " + parentName + " Major";
+      document.getElementById("subLine").textContent = "same seven notes \u2014 the root moves";
+    } else {
+      document.getElementById("titleLine").textContent = rootName + " \u2014 All Seven Modes";
+      document.getElementById("subLine").textContent = "same root \u2014 the notes shift";
+    }
+
+    [...buttonsWrap.children].forEach((b, bi) => b.classList.toggle("active", bi === currentMode));
+
+    rootSelect.value = String(rootPc);
+
+    drawDots(currentMode);
+  }
+
+  drawStaticBoard();
+  render();
+</script>
+</body>
+</html>
