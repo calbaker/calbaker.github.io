@@ -365,8 +365,10 @@
     });
     DOUBLE_DOT_FRETS.forEach(f => {
       const cx = (fretX(f - 1) + fretX(f)) / 2;
-      staticLayer.appendChild(svgEl("circle", { cx, cy: H/2 - 28, r: 7, fill: INLAY_COLOR, opacity: 0.9 }));
-      staticLayer.appendChild(svgEl("circle", { cx, cy: H/2 + 28, r: 7, fill: INLAY_COLOR, opacity: 0.9 }));
+      const cyUpper = (stringY(1) + stringY(2)) / 2; // between B and G
+      const cyLower = (stringY(3) + stringY(4)) / 2; // between D and A
+      staticLayer.appendChild(svgEl("circle", { cx, cy: cyUpper, r: 7, fill: INLAY_COLOR, opacity: 0.9 }));
+      staticLayer.appendChild(svgEl("circle", { cx, cy: cyLower, r: 7, fill: INLAY_COLOR, opacity: 0.9 }));
     });
 
     for (let i = 0; i <= NUM_FRETS; i++) {
