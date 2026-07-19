@@ -213,6 +213,10 @@
       <input type="checkbox" id="logToggle">
       <label for="logToggle">Realistic (log-scaled) fret spacing</label>
     </div>
+    <div class="control">
+      <input type="checkbox" id="chordToneToggle">
+      <label for="chordToneToggle">Chord tones only (hide 2, 4, 6)</label>
+    </div>
   </div>
 
   <div class="panel">
@@ -272,6 +276,7 @@
   let ROOT_PC = 0;       // selected root pitch class (Ionian tonic if !lockRoot, fixed tonic if lockRoot)
   let lockRoot = false;   // false = relative modes (root moves), true = parallel modes (notes shift)
   let logScale = false;
+  let chordTonesOnly = false; // true = show only degrees 1,3,5,7 (the mode's native seventh chord)
   let currentMode = 0;
 
   // For a given mode index i, compute the scale-degree label + diff (relative to Ionian)
@@ -411,10 +416,12 @@
     const { pcs, rootPc } = getActiveNotes(modeIndex);
     const { labels, diffs } = degreeLabelsForMode(modeIndex);
 
-    // map pitch class -> {label, diff} using the scalar-order arrays above
+    // map pitch class -> {label, diff, degreeNum} using the scalar-order arrays above
     const degMap = {};
-    for (let k = 0; k < 7; k++) degMap[pcs[k]] = { label: labels[k], diff: diffs[k] };
-    const scaleSet = new Set(pcs);
+    for (let k = 0; k < 7; k++) degMap[pcs[k]] = { label: labels[k], diff: diffs[k], degreeNum: k + 1 };
+    const scaleSet = new Set(
+      chordTonesOnly ? pcs.filter((pc, k) => (k + 1) % 2 !== 0) : pcs
+    );
 
     STRINGS.forEach((s, si) => {
       const y = stringY(si);
@@ -512,6 +519,11 @@
   document.getElementById("logToggle").addEventListener("change", (e) => {
     logScale = e.target.checked;
     drawStaticBoard();
+    drawDots(currentMode);
+  });
+
+  document.getElementById("chordToneToggle").addEventListener("change", (e) => {
+    chordTonesOnly = e.target.checked;
     drawDots(currentMode);
   });
 
