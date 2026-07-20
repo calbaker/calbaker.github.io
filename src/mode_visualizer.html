@@ -91,6 +91,38 @@
   }
   .control label { cursor: pointer; }
 
+  .options-details {
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    color: var(--parchment);
+  }
+  .options-details summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 6px 12px;
+    border: 1px solid #6b543a;
+    border-radius: 6px;
+    background: var(--wood-mid);
+    user-select: none;
+  }
+  .options-details summary::-webkit-details-marker { display: none; }
+  .options-details summary::before {
+    content: "\25B8\00A0";
+  }
+  .options-details[open] summary::before {
+    content: "\25BE\00A0";
+  }
+  .options-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 10px 14px;
+    border: 1px solid #5c4530;
+    border-radius: 8px;
+    background: var(--wood-mid);
+  }
+
   .panel {
     background: var(--wood-mid);
     border: 1px solid #5c4530;
@@ -205,18 +237,23 @@
       <label for="rootSelect">Root note</label>
       <select id="rootSelect"></select>
     </div>
-    <div class="control">
-      <input type="checkbox" id="lockToggle">
-      <label for="lockToggle">Lock root note (parallel modes)</label>
-    </div>
-    <div class="control">
-      <input type="checkbox" id="logToggle">
-      <label for="logToggle">Realistic (log-scaled) fret spacing</label>
-    </div>
-    <div class="control">
-      <input type="checkbox" id="chordToneToggle">
-      <label for="chordToneToggle">Chord tones only (hide 2, 4, 6)</label>
-    </div>
+    <details class="options-details">
+      <summary>Display options</summary>
+      <div class="options-body">
+        <div class="control">
+          <input type="checkbox" id="lockToggle">
+          <label for="lockToggle">Lock root note (parallel modes)</label>
+        </div>
+        <div class="control">
+          <input type="checkbox" id="logToggle" checked>
+          <label for="logToggle">Realistic (log-scaled) fret spacing</label>
+        </div>
+        <div class="control">
+          <input type="checkbox" id="chordToneToggle">
+          <label for="chordToneToggle">Chord tones only (hide 2, 4, 6)</label>
+        </div>
+      </div>
+    </details>
   </div>
 
   <div class="panel">
@@ -275,7 +312,7 @@
   // ---- State ----------------------------------------------------------
   let ROOT_PC = 0;       // selected root pitch class (Ionian tonic if !lockRoot, fixed tonic if lockRoot)
   let lockRoot = false;   // false = relative modes (root moves), true = parallel modes (notes shift)
-  let logScale = false;
+  let logScale = true;
   let chordTonesOnly = false; // true = show only degrees 1,3,5,7 (the mode's native seventh chord)
   let currentMode = 0;
 
