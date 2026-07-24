@@ -5,7 +5,6 @@
 <title>Mode Visualizer</title>
 
 <!-- Open Graph tags for link previews (Mastodon, etc.) -->
-<!-- Fill in YOUR_USERNAME / YOUR_REPO / preview.png before publishing -->
 <meta property="og:title" content="Modes of the Major Scale — Fretboard Visualizer">
 <meta property="og:description" content="An interactive tool for exploring the seven modes of the major scale on a guitar fretboard.">
 <meta property="og:image" content="https://calbaker.github.io/mode_visualizer_preview.png">
@@ -234,6 +233,10 @@
 
   <div class="controls-row">
     <div class="control">
+      <label for="familySelect">Parent scale</label>
+      <select id="familySelect"></select>
+    </div>
+    <div class="control">
       <label for="rootSelect">Root note</label>
       <select id="rootSelect"></select>
     </div>
@@ -279,23 +282,59 @@
 
   <div class="note-footer">
     Note names use sharps only for simplicity (e.g. D# rather than Eb) &mdash; the degree badge
-    below each dot is the reliable functional label regardless of spelling.
+    below each dot is the reliable functional label regardless of spelling. Alterations are always
+    shown relative to the plain major scale (Ionian), regardless of which parent scale is selected.
   </div>
 
 <script>
   // ---- Music data ---------------------------------------------------
   const NOTE_NAMES_CHROMATIC = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-  const MAJOR_INTERVALS = [0,2,4,5,7,9,11]; // semitones from Ionian root, by scale position
+  const MAJOR_REF_INTERVALS = [0,2,4,5,7,9,11]; // fixed reference: plain major scale, used for "relative to Ionian" labeling regardless of parent scale
 
-  const MODES = [
-    { name: "Ionian",     degree: "I",    formula: "W W H W W W H", mood: "The major scale. Bright, resolved, home base." },
-    { name: "Dorian",     degree: "II",   formula: "W H W W W H W", mood: "Minor but with a raised 6th \u2014 folky, a little hopeful." },
-    { name: "Phrygian",   degree: "III",  formula: "H W W W H W W", mood: "Minor with a flat 2nd \u2014 dark, Spanish-tinged." },
-    { name: "Lydian",     degree: "IV",   formula: "W W W H W W H", mood: "Major with a raised 4th \u2014 dreamy, floating." },
-    { name: "Mixolydian", degree: "V",    formula: "W W H W W H W", mood: "Major with a flat 7th \u2014 bluesy, unresolved." },
-    { name: "Aeolian",    degree: "VI",   formula: "W H W W H W W", mood: "The natural minor scale. Sad, grounded." },
-    { name: "Locrian",    degree: "VII",  formula: "H W W H W W W", mood: "Diminished 5th \u2014 unstable, rarely used as a tonal center." }
-  ];
+  // Each parent scale family: its own interval set (semitones from its own tonic),
+  // plus the name/mood for each of its 7 modes (rotations starting on each degree).
+  // Formulas (W/H/A2 step patterns) are computed dynamically from `intervals`, not hardcoded.
+  const SCALE_FAMILIES = {
+    major: {
+      label: "Major",
+      intervals: [0,2,4,5,7,9,11],
+      modes: [
+        { name: "Ionian",     degree: "I",    mood: "The major scale. Bright, resolved, home base." },
+        { name: "Dorian",     degree: "II",   mood: "Minor but with a raised 6th \u2014 folky, a little hopeful." },
+        { name: "Phrygian",   degree: "III",  mood: "Minor with a flat 2nd \u2014 dark, Spanish-tinged." },
+        { name: "Lydian",     degree: "IV",   mood: "Major with a raised 4th \u2014 dreamy, floating." },
+        { name: "Mixolydian", degree: "V",    mood: "Major with a flat 7th \u2014 bluesy, unresolved." },
+        { name: "Aeolian",    degree: "VI",   mood: "The natural minor scale. Sad, grounded." },
+        { name: "Locrian",    degree: "VII",  mood: "Diminished 5th \u2014 unstable, rarely used as a tonal center." }
+      ]
+    },
+    harmonicMinor: {
+      label: "Harmonic Minor",
+      intervals: [0,2,3,5,7,8,11],
+      modes: [
+        { name: "Harmonic Minor",         degree: "I",    mood: "Natural minor with a raised 7th \u2014 dark, dramatic, strong pull to the tonic." },
+        { name: "Locrian \u266E6",        degree: "II",   mood: "Locrian's instability softened by a natural 6th." },
+        { name: "Ionian \u266F5",         degree: "III",  mood: "Major scale with a raised 5th \u2014 a shimmering, augmented color." },
+        { name: "Dorian \u266F4",         degree: "IV",   mood: "Dorian minor with a sharpened 4th \u2014 exotic, folk-tinged (sometimes called Ukrainian Dorian)." },
+        { name: "Phrygian Dominant",      degree: "V",    mood: "Major 3rd over a Phrygian b2 and b7 \u2014 flamenco and Middle Eastern color." },
+        { name: "Lydian \u266F2",         degree: "VI",   mood: "Lydian's floating #4 plus a sharpened 2nd \u2014 rare and very exotic." },
+        { name: "Superlocrian \u266D\u266D7", degree: "VII",  mood: "The most unstable mode here \u2014 even the 7th is double-flatted." }
+      ]
+    },
+    melodicMinor: {
+      label: "Melodic Minor",
+      intervals: [0,2,3,5,7,9,11],
+      modes: [
+        { name: "Melodic Minor",     degree: "I",    mood: "Minor 3rd, everything else major \u2014 smoother than harmonic minor, a jazz staple." },
+        { name: "Dorian \u266D2",    degree: "II",   mood: "Dorian with a flat 2nd \u2014 moody, half-Phrygian." },
+        { name: "Lydian Augmented",  degree: "III",  mood: "Lydian's #4 plus a raised 5th \u2014 dreamlike and unresolved." },
+        { name: "Lydian Dominant",   degree: "IV",   mood: "Major triad, #4, and b7 together \u2014 the classic sound over dominant 7#11 chords." },
+        { name: "Mixolydian \u266D6", degree: "V",    mood: "Mixolydian's bluesy b7 plus a flat 6th \u2014 a darker dominant color." },
+        { name: "Locrian \u266E2",   degree: "VI",   mood: "Locrian with a natural 2nd \u2014 the standard choice over min7b5 (half-diminished) chords." },
+        { name: "Altered Scale",     degree: "VII",  mood: "Every alterable tension stacked at once \u2014 the classic altered-dominant sound." }
+      ]
+    }
+  };
 
   // Tuning, displayed top string to bottom string (high e on top, like standard tab).
   const STRINGS = [
@@ -310,23 +349,48 @@
   const NUM_FRETS = 12;
 
   // ---- State ----------------------------------------------------------
-  let ROOT_PC = 0;       // selected root pitch class (Ionian tonic if !lockRoot, fixed tonic if lockRoot)
+  let currentFamily = "major";
+  let ROOT_PC = 0;       // selected root pitch class (parent-scale tonic if !lockRoot, fixed tonic if lockRoot)
   let lockRoot = false;   // false = relative modes (root moves), true = parallel modes (notes shift)
   let logScale = true;
   let chordTonesOnly = false; // true = show only degrees 1,3,5,7 (the mode's native seventh chord)
   let currentMode = 0;
 
-  // For a given mode index i, compute the scale-degree label + diff (relative to Ionian)
-  // for each of the 7 scale positions, in mode order (root first). Key-independent.
+  function currentIntervals() {
+    return SCALE_FAMILIES[currentFamily].intervals;
+  }
+  function currentModesArray() {
+    return SCALE_FAMILIES[currentFamily].modes;
+  }
+
+  // W/H/A2 step-pattern formula for mode i of the given interval set, computed dynamically.
+  function formulaForMode(intervals, i) {
+    const seq = [];
+    for (let k = 0; k <= 7; k++) {
+      const idx = (i + k) % 7;
+      const octave = Math.floor((i + k) / 7);
+      seq.push(intervals[idx] + 12 * octave);
+    }
+    const symbolFor = s => (s === 1 ? "H" : s === 2 ? "W" : s === 3 ? "A2" : String(s));
+    const steps = [];
+    for (let k = 0; k < 7; k++) steps.push(symbolFor(seq[k + 1] - seq[k]));
+    return steps.join(" ");
+  }
+
+  // For a given mode index i (of the CURRENT family), compute the scale-degree label + diff
+  // (always relative to the plain major scale) for each of the 7 scale positions, in mode order.
+  // Key-independent; family-dependent via currentIntervals().
   function degreeLabelsForMode(i) {
+    const intervals = currentIntervals();
     const labels = [];
     const diffs = [];
-    const rootExpected = MAJOR_INTERVALS[i];
+    const rootActual = intervals[i];
     for (let k = 0; k < 7; k++) {
-      const expectedAtPos = MAJOR_INTERVALS[(i + k) % 7];
-      let interval = expectedAtPos - rootExpected;
+      const idx = (i + k) % 7;
+      const octave = Math.floor((i + k) / 7);
+      let interval = (intervals[idx] + 12 * octave) - rootActual;
       interval = ((interval % 12) + 12) % 12;
-      const expected = MAJOR_INTERVALS[k];
+      const expected = MAJOR_REF_INTERVALS[k];
       const diff = interval - expected;
       let label;
       if (diff === 0) label = String(k + 1);
@@ -340,20 +404,21 @@
 
   // Returns { pcs: [7 pitch classes, scalar order from root], rootPc, labels, diffs }
   function getActiveNotes(modeIndex) {
+    const intervals = currentIntervals();
     const { labels, diffs } = degreeLabelsForMode(modeIndex);
     let pcs = [];
     let rootPc;
 
     if (!lockRoot) {
-      // Relative modes: ROOT_PC is the Ionian tonic of the parent major scale.
-      const majorScalePcs = MAJOR_INTERVALS.map(iv => (ROOT_PC + iv) % 12);
-      rootPc = majorScalePcs[modeIndex];
-      for (let k = 0; k < 7; k++) pcs.push(majorScalePcs[(modeIndex + k) % 7]);
+      // Relative modes: ROOT_PC is the tonic of the parent scale.
+      const parentScalePcs = intervals.map(iv => (ROOT_PC + iv) % 12);
+      rootPc = parentScalePcs[modeIndex];
+      for (let k = 0; k < 7; k++) pcs.push(parentScalePcs[(modeIndex + k) % 7]);
     } else {
       // Parallel modes: ROOT_PC is fixed as the tonic; notes shift per mode.
       rootPc = ROOT_PC;
       for (let k = 0; k < 7; k++) {
-        const interval = (MAJOR_INTERVALS[k] + diffs[k] + 12) % 12;
+        const interval = (MAJOR_REF_INTERVALS[k] + diffs[k] + 12) % 12;
         pcs.push((ROOT_PC + interval) % 12);
       }
     }
@@ -518,6 +583,21 @@
     });
   }
 
+  // ---- Family select dropdown -------------------------------------------
+  const familySelect = document.getElementById("familySelect");
+  Object.keys(SCALE_FAMILIES).forEach(key => {
+    const opt = document.createElement("option");
+    opt.value = key;
+    opt.textContent = SCALE_FAMILIES[key].label;
+    if (key === currentFamily) opt.selected = true;
+    familySelect.appendChild(opt);
+  });
+  familySelect.addEventListener("change", (e) => {
+    currentFamily = e.target.value;
+    renderModeButtons();
+    render();
+  });
+
   // ---- Root select dropdown --------------------------------------------
   const rootSelect = document.getElementById("rootSelect");
   NOTE_NAMES_CHROMATIC.forEach((name, pc) => {
@@ -531,8 +611,8 @@
     const chosenRootPc = parseInt(e.target.value, 10);
     if (!lockRoot) {
       // The dropdown represents the actual sounding root of the current mode.
-      // Back-solve the parent Ionian tonic so that this mode's root lands on chosenRootPc.
-      ROOT_PC = ((chosenRootPc - MAJOR_INTERVALS[currentMode]) % 12 + 12) % 12;
+      // Back-solve the parent scale's tonic so that this mode's root lands on chosenRootPc.
+      ROOT_PC = ((chosenRootPc - currentIntervals()[currentMode]) % 12 + 12) % 12;
     } else {
       ROOT_PC = chosenRootPc;
     }
@@ -541,12 +621,16 @@
 
   // ---- Mode buttons + state ------------------------------------------
   const buttonsWrap = document.getElementById("modeButtons");
-  MODES.forEach((m, i) => {
-    const btn = document.createElement("button");
-    btn.textContent = m.degree + " \u00b7 " + m.name;
-    btn.addEventListener("click", () => { currentMode = i; render(); });
-    buttonsWrap.appendChild(btn);
-  });
+  function renderModeButtons() {
+    buttonsWrap.innerHTML = "";
+    currentModesArray().forEach((m, i) => {
+      const btn = document.createElement("button");
+      btn.textContent = m.degree + " \u00b7 " + m.name;
+      btn.addEventListener("click", () => { currentMode = i; render(); });
+      buttonsWrap.appendChild(btn);
+    });
+  }
+  renderModeButtons();
 
   document.getElementById("lockToggle").addEventListener("change", (e) => {
     lockRoot = e.target.checked;
@@ -565,14 +649,15 @@
   });
 
   function render() {
-    const m = MODES[currentMode];
+    const family = SCALE_FAMILIES[currentFamily];
+    const m = family.modes[currentMode];
     const { rootPc, labels, diffs } = getActiveNotes(currentMode);
     const rootName = NOTE_NAMES_CHROMATIC[rootPc];
     const parentName = NOTE_NAMES_CHROMATIC[ROOT_PC];
 
     document.getElementById("degreeLabel").textContent = "Degree " + m.degree;
     document.getElementById("modeName").textContent = m.name + " (" + rootName + ")";
-    document.getElementById("modeFormula").textContent = m.formula;
+    document.getElementById("modeFormula").textContent = formulaForMode(currentIntervals(), currentMode);
     document.getElementById("modeMood").textContent = m.mood;
 
     const altered = labels.filter((l, k) => diffs[k] !== 0);
@@ -580,10 +665,10 @@
       altered.length ? "relative to Ionian: " + altered.join(", ") : "relative to Ionian: no alterations";
 
     if (!lockRoot) {
-      document.getElementById("titleLine").textContent = "Modes of " + parentName + " Major";
+      document.getElementById("titleLine").textContent = "Modes of " + parentName + " " + family.label;
       document.getElementById("subLine").textContent = "same seven notes \u2014 the root moves";
     } else {
-      document.getElementById("titleLine").textContent = rootName + " \u2014 All Seven Modes";
+      document.getElementById("titleLine").textContent = rootName + " \u2014 All Seven " + family.label + " Modes";
       document.getElementById("subLine").textContent = "same root \u2014 the notes shift";
     }
 
